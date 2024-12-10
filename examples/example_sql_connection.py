@@ -1,7 +1,7 @@
 import sqlite3
 from datetime import datetime, timedelta
 
-PATH = "../data/flaschen_database.db"
+PATH = "/home/maxsim/maxsim-NFC-raspi/data/flaschen_database.db"
 # Connect to the SQLite database
 
 

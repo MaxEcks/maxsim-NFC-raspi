@@ -60,6 +60,7 @@ class State2(State):
         logging.info("Writing Bottle ID to card...")
         
         # Simulate writing logic
+        
         write_successful = True  # Simulate success
         
         if write_successful:
