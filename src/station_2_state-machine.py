@@ -4,17 +4,25 @@ import sqlite3
 from datetime import datetime
 import qrcode
 from nfc_reader import NFCReader
+import time
 
-# Configure main logging
+# Configure the main logger
 logging.basicConfig(level=logging.DEBUG)
 
-# Configure logging for station2.log
-log_file_path = "station2.log"
-logging.basicConfig(
-    filename=log_file_path,
-    level=logging.DEBUG,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-)
+# Directory and file paths for logs
+log_directory = "/home/maxsim/maxsim-NFC-raspi/logging"
+if not os.path.exists(log_directory):
+    os.makedirs(log_directory)
+
+log_file_path = os.path.join(log_directory, "station2.log")
+
+# Configure a separate logger for station2.log
+station2_logger = logging.getLogger("Station2Logger")
+station2_handler = logging.FileHandler(log_file_path)
+station2_formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+station2_handler.setFormatter(station2_formatter)
+station2_logger.addHandler(station2_handler)
+station2_logger.setLevel(logging.DEBUG)
 
 class StateMachine:
     def __init__(self, db_path):
@@ -39,7 +47,7 @@ class StateMachine:
             self.conn = sqlite3.connect(self.db_path)
             return True
         except sqlite3.Error as e:
-            logging.error(f"Database connection error: {e}")
+            station2_logger.error(f"Database connection error: {e}")
             return False
 
     def close_db(self):
@@ -63,97 +71,68 @@ class State:
 
 class State0(State):
     def run(self):
-        logging.info("Initializing RFID reader and database connection...")
+        station2_logger.info("Initializing RFID reader and database connection...")
         try:
             self.machine.nfc_reader = NFCReader()
             if self.machine.connect_db():
-                logging.info("Initialization successful")
+                station2_logger.info("Initialization successful")
                 self.machine.current_state = 'State1'
             else:
                 raise Exception("Database connection failed")
         except Exception as e:
-            logging.error(f"Initialization failed: {e}")
+            station2_logger.error(f"Initialization failed: {e}")
             self.machine.current_state = 'State5'
 
 class State1(State):
     def run(self):
-        logging.info("Waiting for RFID card...")
+        station2_logger.info("Waiting for RFID card...")
         try:
-            self.machine.uid = bytes(self.machine.nfc_reader.read_passive_target(timeout=10))
+            self.machine.uid = self.machine.nfc_reader.read_passive_target(timeout=10)
             if self.machine.uid:
-                logging.info(f"Card detected: {[hex(i) for i in self.machine.uid]}")
+                self.machine.uid = bytes(self.machine.uid)
+                station2_logger.info(f"Card detected: {[hex(i) for i in self.machine.uid]}")
                 self.machine.current_state = 'State2'
+                time.sleep(1)  # Add a 1-second wait
             else:
-                self.machine.current_state = 'State1'
+                raise Exception("Timeout occurred while waiting for RFID card.")
         except Exception as e:
-            logging.error(f"Card reading error: {e}")
+            station2_logger.error(f"Card reading error: {e}")
             self.machine.current_state = 'State5'
 
 class State2(State):
     def run(self):
-        logging.info("Checking if the RFID chip is already tagged...")
+        station2_logger.info("Fetching bottle information from RFID chip...")
         try:
-            cursor = self.machine.conn.cursor()
-
-            cursor.execute('''
-                SELECT Flaschen_ID, Tagged_Date 
-                FROM Flasche 
-                WHERE Flaschen_ID = ? AND Tagged_Date != 0
-            ''', (self.machine.bottle_id,))
-            result = cursor.fetchone()
-
-            if result:
-                logging.info(f"Bottle ID {result[0]} already tagged on {result[1]}")
-                self.machine.current_state = 'State1'
-                return
-
-            cursor.execute('''
-                SELECT Flaschen_ID
-                FROM Flasche 
-                WHERE Tagged_Date = 0
-                LIMIT 1
-            ''')
-            result = cursor.fetchone()
-
-            if not result:
-                logging.error("No available bottles found")
-                self.machine.current_state = 'State5'
-                return
-
-            self.machine.bottle_id = result[0]
-
             block_number = 2
-            data = self.machine.bottle_id.to_bytes(16, byteorder='big')
-            if self.machine.nfc_reader.write_block(self.machine.uid, block_number, data):
-                logging.info(f"Bottle ID {self.machine.bottle_id} written to RFID chip.")
+            data = self.machine.nfc_reader.read_block(self.machine.uid, block_number)
+            if data and any(data):
+                self.machine.bottle_id = int.from_bytes(data, byteorder='big')
+                station2_logger.info(f"Bottle ID {self.machine.bottle_id} read from RFID chip.")
                 self.machine.current_state = 'State3'
             else:
-                raise Exception("Failed to write Bottle ID to RFID chip")
-                
+                station2_logger.error("No valid Bottle ID found on RFID chip")
+                self.machine.current_state = 'State5'
         except Exception as e:
-            logging.error(f"Error during bottle tagging process: {e}")
-            self.machine.current_state = 'State1'
+            station2_logger.error(f"Error reading Bottle ID from RFID chip: {e}")
+            self.machine.current_state = 'State5'
 
 class State3(State):
     def run(self):
-        logging.info("Updating database...")
+        station2_logger.info("Fetching recipe details from the database...")
         try:
             cursor = self.machine.conn.cursor()
-            timestamp = int(datetime.now().timestamp())
-            cursor.execute('''
-                UPDATE Flasche 
-                SET Tagged_Date = ?, has_error = ?
-                WHERE Flaschen_ID = ?
-            ''', (timestamp, False, self.machine.bottle_id))
-            self.machine.conn.commit()
             self.machine.recipe = self.get_recipe(cursor)
-            self.machine.current_state = 'State4'
+            if self.machine.recipe:
+                self.machine.current_state = 'State4'
+            else:
+                station2_logger.error(f"No recipe found for Bottle ID {self.machine.bottle_id}")
+                self.machine.current_state = 'State5'
         except Exception as e:
-            logging.error(f"Database update failed: {e}")
+            station2_logger.error(f"Database query failed: {e}")
             self.machine.current_state = 'State5'
 
     def get_recipe(self, cursor):
-        logging.info("Fetching recipe details...")
+        station2_logger.info(f"Fetching recipe for Bottle ID {self.machine.bottle_id}...")
         cursor.execute('''
             SELECT Granulat_ID, Menge 
             FROM Rezept_besteht_aus_Granulat 
@@ -167,13 +146,13 @@ class State3(State):
 
 class State4(State):
     def run(self):
-        logging.info("Outputting recipe information and generating QR code...")
+        station2_logger.info("Outputting recipe information and generating QR code...")
         try:
             # Log and print the recipe
             bottle_log = f"Filling details for Bottle ID: {self.machine.bottle_id}\n"
             for granule_id, quantity in self.machine.recipe:
                 log_message = f"Granule ID: {granule_id}, Quantity: {quantity}"
-                logging.info(log_message)
+                station2_logger.info(log_message)
                 bottle_log += log_message + "\n"
                 print(log_message)
 
@@ -203,7 +182,7 @@ class State4(State):
             qr_file_path = os.path.join(qr_directory, f"qr_bottle_{self.machine.bottle_id}.png")
             qr_image = qr.make_image(fill_color="black", back_color="white")
             qr_image.save(qr_file_path)
-            logging.info(f"QR code generated and saved at {qr_file_path}")
+            station2_logger.info(f"QR code generated and saved at {qr_file_path}")
 
             bottle_log += f"QR Code saved at: {qr_file_path}\n"
             bottle_log += "-" * 40 + "\n"
@@ -212,15 +191,17 @@ class State4(State):
                 log_file.write(bottle_log)
 
             self.machine.current_state = 'State1'
+            time.sleep(2)  # Add a 2-second wait
 
         except Exception as e:
-            logging.error(f"Error during QR code generation: {e}")
+            station2_logger.error(f"Error during QR code generation: {e}")
             self.machine.current_state = 'State5'
 
 class State5(State):
     def run(self):
-        logging.error("Process failed - check logs")
-        self.machine.current_state = 'State5'
+        station2_logger.error("Process failed - check logs")
+        print("Process failed at some point. Please check the logs.")  # Print to terminal
+        self.machine.current_state = 'State5'  # End of process
 
 if __name__ == '__main__':
     DB_PATH = "/home/maxsim/maxsim-NFC-raspi/data/flaschen_database.db"
