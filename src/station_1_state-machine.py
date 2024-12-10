@@ -3,7 +3,7 @@ import os
 import sqlite3
 from datetime import datetime
 from nfc_reader import NFCReader
-import time # Add time module for sleep function
+import time
 
 # Configure the main logger
 logging.basicConfig(level=logging.DEBUG)
@@ -44,7 +44,7 @@ class StateMachine:
             self.conn = sqlite3.connect(self.db_path)
             return True
         except sqlite3.Error as e:
-            logging.error(f"Database connection error: {e}")
+            station1_logger.error(f"Database connection error: {e}")
             return False
 
     def close_db(self):
@@ -82,13 +82,13 @@ class State0(State):
 
 class State1(State):
     def run(self):
-        logging.info("Waiting for RFID card...")
+        station1_logger.info("Waiting for RFID card...")
         try:
             uid = self.machine.nfc_reader.read_passive_target(timeout=10)
             if uid is None:
                 raise Exception("Timeout occurred while waiting for RFID card.")
             self.machine.uid = bytes(uid)  # Convert to bytes only if uid is not None
-            logging.info(f"Card detected: {[hex(i) for i in self.machine.uid]}")
+            station1_logger.info(f"Card detected: {[hex(i) for i in self.machine.uid]}")
             self.machine.current_state = 'State2'
             time.sleep(1)  # Add a 1-second wait
         except Exception as e:
@@ -99,7 +99,7 @@ class State1(State):
 
 class State2(State):
     def run(self):
-        logging.info("Checking if the RFID chip is already tagged...")
+        station1_logger.info("Checking if the RFID chip is already tagged...")
         try:
             block_number = 2
             data = self.machine.nfc_reader.read_block(self.machine.uid, block_number)
@@ -114,15 +114,15 @@ class State2(State):
                 result = cursor.fetchone()
 
                 if result:
-                    logging.info(f"Bottle ID {result[0]} already tagged on {result[1]}")
+                    station1_logger.info(f"Bottle ID {result[0]} already tagged on {result[1]}")
                     time.sleep(2)  # Add a 2-second wait before retrying
                     self.machine.current_state = 'State1'  # Return to waiting for new RFID
                     return
                 else:
-                    logging.info(f"Bottle ID {self.machine.bottle_id} found in block but not tagged in database")
+                    station1_logger.info(f"Bottle ID {self.machine.bottle_id} found in block but not tagged in database")
                     self.machine.current_state = 'State3'
             else:
-                logging.info("Block 2 is empty, fetching an untagged bottle ID...")
+                station1_logger.info("Block 2 is empty, fetching an untagged bottle ID...")
                 cursor = self.machine.conn.cursor()
                 cursor.execute('''
                     SELECT Flaschen_ID
@@ -146,12 +146,12 @@ class State2(State):
                     raise Exception("Failed to write Bottle ID to RFID chip")
 
         except Exception as e:
-                station1_logger.error(f"Error during bottle tagging process: {e}")
-                self.machine.current_state = 'State1'
+            station1_logger.error(f"Error during bottle tagging process: {e}")
+            self.machine.current_state = 'State1'
 
 class State3(State):
     def run(self):
-        logging.info("Updating database...")
+        station1_logger.info("Updating database...")
         try:
             cursor = self.machine.conn.cursor()
             # Get current Unix timestamp (seconds since epoch)
@@ -175,15 +175,13 @@ class State3(State):
 
 class State4(State):
     def run(self):
-        logging.info("Process completed for one bottle, proceeding to next...")
+        station1_logger.info("Process completed for one bottle, proceeding to next...")
         time.sleep(2)  # Add a 2-second wait before restarting the process
         self.machine.current_state = 'State1'
 
 class State5(State):
     def run(self):
-        logging.error("Process failed at some point. Please check the logs.")
-        logging.info("Entering State5: Process failed or stopped.")
-        station1_logger.error("Process failed at some point. Please check the logs.")  # Log to station1.log
+        station1_logger.error("Process failed at some point. Please check the logs.")
         print("Process failed at some point. Please check the logs.")  # Print to terminal
         self.machine.current_state = 'State5'  # End of process
 
