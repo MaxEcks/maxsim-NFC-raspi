@@ -29,8 +29,8 @@ Zusätzlich wird eine Bonusfunktion implementiert, bei der für alle korrekt abg
 - Das Abfülldatum  
 
 ## Station 1
+![Station 1 Diagramm](https://www.plantuml.com/plantuml/png/VP71IlGm58NtVOgp_g6BVsRS595Xg888RYgu41UPzamR9abBUhFmVNmJNypKcb8KPzNSVkUxzyBTZwAy16koJZS4xI1lQ3ZMNW-YUvUz_7j5dj-W4YNydsNp5mMUeqUeSCB3z4eWHJV5_1_qP-MSp7mJnQhkFFNnWdjLu4bRza4IkSvJrqLtSBhk1FIdthIUiKWpKf_jAlqxjqN4mrJJ4_SbWcjGAWaMsaqFkgDovnHUBLSUC5xUOYtiVWZhQ0hS-b5e377WA1_lejlWsYpDM-WTEqDlQPe5xxwk4wzKeA9hY4SL9qqxVUj_ytsiWpMV)
 
-![Station 1 Diagramm](//www.plantuml.com/plantuml/png/VP71IlGm58NtVOgp_g6BVsRS595Xg888RYgu41UPzamR9abBUhFmVNmJNypKcb8KPzNSVkUxzyBTZwAy16koJZS4xI1lQ3ZMNW-YUvUz_7j5dj-W4YNydsNp5mMUeqUeSCB3z4eWHJV5_1_qP-MSp7mJnQhkFFNnWdjLu4bRza4IkSvJrqLtSBhk1FIdthIUiKWpKf_jAlqxjqN4mrJJ4_SbWcjGAWaMsaqFkgDovnHUBLSUC5xUOYtiVWZhQ0hS-b5e377WA1_lejlWsYpDM-WTEqDlQPe5xxwk4wzKeA9hY4SL9qqxVUj_ytsiWpMV)
 ### Zusammenfassung der implementierten Funktionen
 
 Das Python-Modul `station_1_state_machine.py` implementiert eine State-Machine zur Verwaltung des RFID-Tagging-Prozesses für Flaschen. Es erfüllt die Aufgabenstellung, indem es sowohl erfolgreiche als auch fehlerhafte Szenarien abdeckt. Die wichtigsten Funktionen und Mechanismen sind:
@@ -76,7 +76,7 @@ Die Aufgabenstellung wurde vollständig umgesetzt:
 
 
 ## Station 2
-![Station 2 Diagramm](//www.plantuml.com/plantuml/png/RP4_JyGm3CNtV0hFI3Vmfmi3EX2w1IP0Oa0CwVKrhKXTb3WBdnxtL4TGtLRr_TxFZhpFufEKARgFYq_QtT6hUC4bERT-tDAx0Y1VUZf4duy3B3BwIg4r8gGlponRf57aRPmm5t6kbfvEveWCjfyxQrpN7AcVOqWOZmC5dAURIhDYebnVkDk0zg3dHR62V-JErS4l-C6ta2-P7X_8jwdqO8khwyR8Vnh50yuNcbhOhkdSnZXoFwV9opWpU5aae0KRjHZrNahVQ-9Rd8Rg0UASywAhumuO8bABmNCN2mTBp6041Ko87SJjmLsPuYy0)
+![Station 2 Diagramm](https://www.plantuml.com/plantuml/png/RP4_JyGm3CNtV0hFI3Vmfmi3EX2w1IP0Oa0CwVKrhKXTb3WBdnxtL4TGtLRr_TxFZhpFufEKARgFYq_QtT6hUC4bERT-tDAx0Y1VUZf4duy3B3BwIg4r8gGlponRf57aRPmm5t6kbfvEveWCjfyxQrpN7AcVOqWOZmC5dAURIhDYebnVkDk0zg3dHR62V-JErS4l-C6ta2-P7X_8jwdqO8khwyR8Vnh50yuNcbhOhkdSnZXoFwV9opWpU5aae0KRjHZrNahVQ-9Rd8Rg0UASywAhumuO8bABmNCN2mTBp6041Ko87SJjmLsPuYy0)
 ### Zusammenfassung der implementierten Funktionen für Station 2
 
 Das Python-Modul `station_2_state_machine.py` implementiert eine State-Machine zur Bestimmung der Füllmengen basierend auf RFID-Tags und zur Generierung eines QR-Codes für korrekt abgefüllte Flaschen. Es erfüllt die Aufgabenstellung durch klare und robuste Zustandslogik. Die wichtigsten Funktionen sind:
